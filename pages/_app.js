@@ -1,4 +1,5 @@
 
+import 'react-datepicker/dist/react-datepicker.css';
 import 'styles/index.scss';
 
 import React from 'react';

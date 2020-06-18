@@ -1,8 +1,10 @@
 
+import { useEffect } from 'react';
 import { useForm } from "react-hook-form";
 import { Alert } from 'react-bootstrap';
+import DatePicker from "react-datepicker";
 
-// true -> input is valid
+// true -> input IS valid
 // false -> input is NOT valid
 const firstLetterUpper = iText => {
   if (!iText) { return true; }
@@ -15,8 +17,43 @@ const firstLetterUpper = iText => {
   // return iText[0].toUpperCase() === iText[0];
 }
 
+const isDateInFuture = date => {
+  if (!date) { return false; }
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  // if (date > today) {
+  //   return false
+  // }
+
+  // return true;
+
+  return !(date > today);
+}
+
 const PortfolioForm = ({onSubmit}) => {
-  const { register, handleSubmit, errors } = useForm();
+  const { register, handleSubmit, errors, setError, clearError, watch, setValue } = useForm();
+  const startDate = watch('startDate');
+  const endDate = watch('endDate');
+
+  useEffect(() => {
+    register({name: 'startDate', type: 'custom'}, {validate: { isDateInFuture }});
+    register({name: 'endDate', type: 'custom'}, {validate: { isDateInFuture }});
+  }, [])
+
+  // const handleDateChange = (date, dateType) => {
+  //   setValue(dateType, date);
+  // }
+
+  // const handleDateChange = dateType => date => setValue(dateType, date);
+  const handleDateChange = dateType => date => {
+    if (!isDateInFuture(date)) {
+      setError(dateType, 'isDateInFuture')
+    } else {
+      clearError(dateType, 'isDateInFuture');
+    }
+    setValue(dateType, date)
+  };
+
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -114,6 +151,42 @@ const PortfolioForm = ({onSubmit}) => {
             { errors.description?.type === "required" && <p>Description is required</p> }
           </Alert>
         }
+      </div>
+      <div className="form-group">
+        <label htmlFor="startDate">Start Date</label>
+        <div>
+          <DatePicker
+            showYearDropdown
+            selected={startDate}
+            onChange={handleDateChange('startDate')}
+          />
+           { errors.startDate &&
+            <Alert variant="danger">
+              { errors.startDate?.type === "isDateInFuture" && <p>Please choose present or past date!</p> }
+            </Alert>
+          }
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="endDate">End Date</label>
+        <div>
+        <DatePicker
+            showYearDropdown
+            selected={endDate}
+            onChange={handleDateChange('endDate')}
+          />
+          { errors.endDate &&
+            <Alert variant="danger">
+              { errors.endDate?.type === "isDateInFuture" && <p>Please choose present or past date!</p> }
+            </Alert>
+          }
+          {/* <DatePicker
+            showYearDropdown
+            selected={endDate}
+            onChange={(date) => handleDateChange(date, 'endDate')}
+          /> */}
+        </div>
       </div>
       <button
         type="submit"
