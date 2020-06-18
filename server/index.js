@@ -6,7 +6,8 @@ const app = express();
 const bodyParser = require('body-parser');
 const User = require('./db/user');
 const PendingUser = require('./db/pending-user');
-const { sendConfirmationEmail } = require('./mailer');
+const AccessHash = require('./db/access-hash');
+const { sendConfirmationEmail, sendResetPasswordEmail } = require('./mailer');
 
 const cors = require('cors');
 const corsOptions = {
@@ -19,6 +20,54 @@ app.use(cors(corsOptions));
 
 app.get('/api/test', (req, res) => {
   res.json({message: 'Hello World!'});
+})
+
+app.post('/api/reset-password', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.find({email});
+    if (!user) {
+      return res.status(422).send("User doesn't exist!");
+    }
+
+    const hasHash = await AccessHash.find({userId: user.data._id})
+    if (hasHash) {
+      return res.status(422).send("Email to reset password was already sent!");
+    }
+
+    // Todo: set expiration time on hash
+    const aHash = await new AccessHash({userId: user.data._id });
+    await sendResetPasswordEmail({toUser: user.data, hash: aHash.data._id})
+    await aHash.save();
+    return res.json({message: 'Please check your email in order to reset the password!'})
+  } catch {
+    return res.status(422).send("Ooops, something went wrong!");
+  }
+})
+app.post('/api/reset-password/confirmation', async (req, res) => {
+  const { password, hash } = req.body;
+
+  try {
+    const aHash = await AccessHash.find({_id: hash});
+    if (!aHash || !aHash.data.userId) {
+      return res.status(422).send("Cannot reset password!");
+    }
+
+    const user = await User.find({_id: aHash.data.userId});
+    if (!user) {
+      return res.status(422).send("Cannot reset password!");
+    }
+
+    await user.remove();
+    await aHash.remove();
+    const newUser = new User({...user.data, password});
+    await newUser.hashPassword();
+    await newUser.save();
+    return res.json({message: 'Password has been resseted'})
+  } catch {
+    return res.status(422).send("Ooops, something went wrong!");
+  }
 })
 
 app.get('/api/activate/user/:hash', async (req, res) => {

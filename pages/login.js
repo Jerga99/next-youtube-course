@@ -4,6 +4,7 @@ import { PageTitle } from 'components/shared';
 import { useForm } from "react-hook-form";
 import { useMutate } from "restful-react";
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 
 const Login = () => {
   const router = useRouter();
@@ -47,6 +48,13 @@ const Login = () => {
                 {error?.data}
               </Alert>
             }
+            <div className="mb-2">
+              <Link href="reset-password">
+                <a>
+                  Reset Password
+                </a>
+              </Link>
+            </div>
             <Button
               disabled={loading}
               variant="primary"
