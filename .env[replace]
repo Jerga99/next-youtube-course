@@ -1,0 +1,5 @@
+
+
+GOOGLE_USER=YOUR_GOOGLE_EMAIL // e.g test@gmail.com
+GOOGLE_PASSWORD=YOUR_GOOGLE_PASSWORD // test111
+DOMAIN=YOUR_DOMAIN // e.g http://localhost:3001
