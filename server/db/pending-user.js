@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 module.exports = fileDb.register('pending-users', {
   methods: {
     hashPassword: function() {
-      const user = this.data;
+      const user = this;
       return new Promise((res, rej) => {
         bcrypt.genSalt(10, function(err, salt) {
           if (err) { return rej(err) }

@@ -10,6 +10,7 @@ const AccessHash = require('./db/access-hash');
 const { sendConfirmationEmail, sendResetPasswordEmail } = require('./mailer');
 
 const cors = require('cors');
+
 const corsOptions = {
   origin: 'http://localhost:3000',
   optionsSuccessStatus: 200
@@ -26,55 +27,51 @@ app.post('/api/reset-password', async (req, res) => {
   const { email } = req.body;
 
   try {
-    const user = await User.find({email});
-    if (!user) {
-      return res.status(422).send("User doesn't exist!");
-    }
+    const user = await User.findOne({email});
+    if (!user) { return res.status(422).send("User doesn't exists!"); }
 
-    const hasHash = await AccessHash.find({userId: user.data._id})
-    if (hasHash) {
-      return res.status(422).send("Email to reset password was already sent!");
-    }
+    const hasHash = await AccessHash.findOne({userId: user._id});
+    if (hasHash) { return res.status(422).send("Email to reset password was already sent!"); }
 
-    // Todo: set expiration time on hash
-    const aHash = await new AccessHash({userId: user.data._id });
-    await sendResetPasswordEmail({toUser: user.data, hash: aHash.data._id})
-    await aHash.save();
-    return res.json({message: 'Please check your email in order to reset the password!'})
+    const hash = new AccessHash({userId: user._id});
+    await hash.save();
+    await sendResetPasswordEmail({toUser: user, hash: hash._id});
+    return res.json({message: 'Please check your email to reset the password!'})
   } catch {
-    return res.status(422).send("Ooops, something went wrong!");
+    return res.status(422).send('Ooops, something went wrong!');
   }
 })
+
 app.post('/api/reset-password/confirmation', async (req, res) => {
   const { password, hash } = req.body;
 
   try {
-    const aHash = await AccessHash.find({_id: hash});
-    if (!aHash || !aHash.data.userId) {
-      return res.status(422).send("Cannot reset password!");
+    const aHash = await AccessHash.findOne({_id: hash});
+    if (!aHash || !aHash.userId) {
+      return res.status(422).send('Cannot reset a password!');
     }
 
-    const user = await User.find({_id: aHash.data.userId});
+    const user = await User.findOne({_id: aHash.userId});
     if (!user) {
-      return res.status(422).send("Cannot reset password!");
+      return res.status(422).send('Cannot reset a password!');
     }
 
     await user.remove();
     await aHash.remove();
-    const newUser = new User({...user.data, password});
+    const newUser = new User({...user, password});
     await newUser.hashPassword();
     await newUser.save();
-    return res.json({message: 'Password has been resseted'})
+    return res.json({message: 'Password has been reseted!'});
   } catch {
-    return res.status(422).send("Ooops, something went wrong!");
+    return res.status(422).send('Ooops, something went wrong!');
   }
 })
 
 app.get('/api/activate/user/:hash', async (req, res) => {
   const { hash } = req.params;
   try {
-    const user = await PendingUser.find({_id: hash});
-    const newUser = new User({...user.data});
+    const user = await PendingUser.findOne({_id: hash});
+    const newUser = new User({...user});
     await newUser.save();
     await user.remove();
     res.json({message: `User ${hash} has been activated`})
@@ -85,7 +82,7 @@ app.get('/api/activate/user/:hash', async (req, res) => {
 
 app.delete('/api/user/delete', async (req, res) => {
   try {
-    const user = await PendingUser.find({email: 'test'});
+    const user = await PendingUser.findOne({email: 'test'});
     await user.remove();
     return res.json({message: 'User has been removed!'})
   } catch(e) {
@@ -96,15 +93,15 @@ app.delete('/api/user/delete', async (req, res) => {
 app.post('/api/register', async (req, res) => {
   const { email, username, password } = req.body;
   try {
-    const rUser = await User.find({email});
-    const pUser = await PendingUser.find({email});
+    const rUser = await User.findOne({email});
+    const pUser = await PendingUser.findOne({email});
     if (pUser || rUser) { return res.status(422).send('User is already registered!');}
 
     const newUser = new PendingUser({email, username, password});
     await newUser.hashPassword();
-    await sendConfirmationEmail({toUser: newUser.data, hash: newUser.data._id })
+    await sendConfirmationEmail({toUser: newUser, hash: newUser._id })
 
-    const user = await newUser.save();
+    await newUser.save();
     res.json({message: 'You have been registered.'});
   } catch(e) {
     res.status(422).send(e.message);
@@ -114,7 +111,7 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await User.find({email});
+    const user = await User.findOne({email});
     if (!user) { return res.status(422).send('Invalid credentials!')}
 
     const isValid = await user.validatePassword(password);

@@ -3,11 +3,15 @@ const fs = require('fs').promises;
 const path = require('path');
 
 function Model(resource, data) {
-  this.resource = resource;
   this._id = this.db.generateId();
+  this.resource = resource;
 
   if (data) {
-    this.data = {_id: this._id, ...data};
+    for (const property in data) {
+      if (data.hasOwnProperty(property) && property !== 'resource') {
+        this[property] = data[property];
+      }
+    }
   }
 }
 
@@ -16,7 +20,7 @@ Model.getAll = async function getAll() {
   return all || [];
 }
 
-Model.find = async function find(fields) {
+Model.findOne = async function findOne(fields) {
   const keys = Object.keys(fields);
   if (keys.length === 0) { throw new Error('Provide fields!')}
 
@@ -31,24 +35,48 @@ Model.find = async function find(fields) {
     return isFound;
   })
 
-  if (!result) { return null; }
+  if (!result) { throw new Error('Item not found!') }
   return new this(result);
 }
 
-Model.prototype.remove = async function remove() {
-  const keys = Object.keys(this.data);
+Model.search = async function search(fields) {
+  const keys = Object.keys(fields);
   if (keys.length === 0) { throw new Error('Provide fields!')}
 
-  const all = await Model.getAll.call(this);
-  if (all.length === 0) { return null; };
+  const all = await this.getAll();
+  if (all.length === 0) { return []; };
 
-  const index = all.findIndex(a => {
+  const results = all.filter(a => {
     const isFound = keys.every(k => {
-      return this.data[k] === a[k];
+      return typeof a[k] === 'string' && a[k].toLowerCase().includes(fields[k]);
     })
 
     return isFound;
   })
+
+  if (!results) { throw new Error('Item not found!') }
+  return results.map(r => new this(r))
+}
+
+Model.findOneAndUpdate = async function findOneAndUpdate(id, data) {
+  const all = await this.getAll();
+  if (all.length === 0) {
+    { throw new Error('Collection is empty')};
+  }
+  const index = all.findIndex(a => a._id === id);
+  if (index < 0) { throw new Error('Item doesnt exists!')};
+  all[index] = {...all[index], ...data}
+  await this.db.saveData(this.resource, all);
+  return all[index];
+}
+
+Model.prototype.remove = async function remove() {
+
+  const all = await Model.getAll.call(this);
+  if (all.length === 0) { throw new Error('Collection is empty') };
+
+  const index = all.findIndex(a => a._id === this._id)
+  if (index < 0) { throw new Error('Item not found!')};
 
   all.splice(index, 1);
   await this.db.saveData(this.resource, all);
@@ -60,14 +88,17 @@ Model.prototype.remove = async function remove() {
 
 Model.prototype.save = async function save() {
   const all = await Model.getAll.call(this);
-  all.push(this.data);
+  for (const desc in this.descriptors) {
+    newItem[desc] = this[desc];
+  }
+  all.push(this);
   await this.db.saveData(this.resource, all);
-  return this.data;
+  return this;
 }
 
 class Connection {
   resolvePath(resource) {
-    return path.join(__dirname, 'data', `${resource}.json`);
+    return path.join(__dirname, '..', 'db', 'data', `${resource}.json`);
   }
 
   async readData(resource) {
@@ -123,6 +154,10 @@ class FileDatabase {
       Object.keys(methods).forEach((method) => {
         model.prototype[method] = methods[method];
       })
+    }
+
+    if (schema.descriptors) {
+      model.prototype.descriptors = {...schema.descriptors};
     }
 
     this.models[resource] = model;
