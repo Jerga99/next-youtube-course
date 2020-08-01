@@ -8,6 +8,11 @@ const User = require('./db/user');
 const PendingUser = require('./db/pending-user');
 const AccessHash = require('./db/access-hash');
 const { sendConfirmationEmail, sendResetPasswordEmail } = require('./mailer');
+// second video
+const CloudinaryImage = require('./db/images');
+const { cloudinaryUpload } = require('./services/cloudinary');
+const { dataUri } = require('./services/data-uri');
+const { upload } = require('./services/multer');
 
 const cors = require('cors');
 
@@ -121,6 +126,38 @@ app.post('/api/login', async (req, res) => {
   } catch(e) {
     res.status(404).send(e.message);
   }
+})
+
+const singleUpload = upload.single('image');
+
+const singleUploadCtrl = (req, res, next) => {
+  singleUpload(req, res, (error) => {
+    if (error) {
+      return res.sendApiError(
+        { title: 'Upload Error',
+          detail:  error.message});
+    }
+
+    next();
+  })
+}
+
+app.post('/api/image-upload', singleUploadCtrl,  async (req, res) => {
+  try {
+    if (!req.file) { throw new Error('Image is not presented!');}
+    const file64 = dataUri(req.file);
+    const uploadResult = await cloudinaryUpload(file64.content);
+    const cImage = new CloudinaryImage({cloudinaryId: uploadResult.public_id, url: uploadResult.secure_url});
+    await cImage.save();
+    return res.json(cImage);
+  } catch(error) {
+    return res.status(422).json({message: error.message});
+  }
+});
+
+app.get('/api/images', async (req, res) => {
+  const images = await CloudinaryImage.getAll();
+  return res.json(images);
 })
 
 const PORT = process.env.PORT || 3001;
