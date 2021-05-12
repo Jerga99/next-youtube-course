@@ -22,7 +22,7 @@
     "express": "^4.17.1",
     "multer": "^1.4.2",
     "next": "^9.4.4",
-    "nodemailer": "^6.4.10",
+    "nodemailer": "^6.4.16",
     "react": "^16.13.1",
     "react-bootstrap": "^1.0.1",
     "react-datepicker": "^3.0.0",
