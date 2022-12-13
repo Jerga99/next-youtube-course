@@ -19,7 +19,7 @@
     "cors": "^2.8.5",
     "datauri": "^3.0.0",
     "dotenv": "^8.2.0",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "multer": "^1.4.2",
     "next": "^9.4.4",
     "nodemailer": "^6.4.10",
